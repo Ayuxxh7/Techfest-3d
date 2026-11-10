@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Techfest 2026 – Build in 3D</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;800&family=Sora:wght@400;600&display=swap">
+<style>
+:root{--bg:#07041a;--ink:#eef0ff;--mute:#9da3d6;--cy:#3df2ff;--mg:#ff3d9a;--panel:rgba(14,10,46,.62);--line:rgba(120,130,255,.35);
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Sora',system-ui,sans-serif;overflow-x:hidden}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+.s{height:100vh;height:100svh;position:relative;display:flex;flex-direction:column;justify-content:center;padding:0 clamp(20px,6vw,80px);pointer-events:none}
+.s>*{pointer-events:auto}
+h1,h2{font-family:'Unbounded',system-ui,sans-serif;margin:0;line-height:1.05}
+h1{font-size:clamp(40px,9vw,120px);font-weight:800;letter-spacing:-.02em}
+h1 span{color:transparent;-webkit-text-stroke:2px var(--cy)}
+h2{font-size:clamp(26px,5vw,56px);font-weight:800}
+p{max-width:46ch;color:var(--mute);line-height:1.6}
+.hint{color:var(--cy);font-size:14px}
+.panel{background:var(--panel);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:18px;padding:18px 22px;max-width:420px}
+.row{display:flex;justify-content:space-between;gap:18px;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.row:last-child{border:0}.row b{color:var(--cy);font-weight:600;white-space:nowrap}
+.top{justify-content:flex-start;padding-top:calc(14vh + env(safe-area-inset-top,0px))}
+.right{align-items:flex-end}
+input{width:100%;margin:6px 0;padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(7,4,26,.7);color:var(--ink);font:inherit}
+input:focus-visible,button:focus-visible{outline:2px solid var(--cy);outline-offset:2px}
+button{cursor:pointer;font:600 16px 'Sora',sans-serif;border:0;border-radius:12px;padding:13px 22px;background:linear-gradient(90deg,var(--cy),var(--mg));color:#07041a;margin-top:8px}
+nav{position:fixed;top:env(safe-area-inset-top,0px);left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:14px clamp(20px,6vw,80px);font-family:'Unbounded',sans-serif;font-size:14px;pointer-events:none}
+.bar{position:fixed;left:0;top:0;height:3px;width:0;background:linear-gradient(90deg,var(--cy),var(--mg));z-index:6}
+#modal{position:fixed;inset:0;z-index:10;display:none;align-items:center;justify-content:center;background:rgba(4,2,16,.7);padding:20px}
+#modal.on{display:flex}
+#modal .panel{max-width:440px;animation:pop .35s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes pop{from{transform:scale(.6) rotate(-4deg);opacity:0}}
+@media (prefers-reduced-motion:reduce){#modal .panel{animation:none}}
+</style>
+</head>
+<body>
+<div class="bar" id="bar"></div>
+<nav><span>Techfest 2026</span><span id="sec">Start</span></nav>
+<canvas id="c"></canvas>
+
+<section class="s">
+  <h1>Tech<span>fest</span><br>2026</h1>
+  <p>Teen din, 40+ events, ek cyborg-themed campus. Neeche scroll karo aur 3D duniya me ghus jao.</p>
+  <div class="hint">Mouse hilao, object tilt hoga</div>
+</section>
+
+<section class="s top">
+  <h2>Events</h2>
+  <p>Teeno 3D objects par hover karo, click karke event ki details kholo.</p>
+</section>
+
+<section class="s">
+  <div class="panel">
+    <h2 style="font-size:28px;margin-bottom:10px">Schedule</h2>
+    <div class="row"><span>Hackathon shuru</span><b>Day 1, 10:00</b></div>
+    <div class="row"><span>Robo Wars</span><b>Day 2, 11:30</b></div>
+    <div class="row"><span>Design Sprint</span><b>Day 2, 14:00</b></div>
+    <div class="row"><span>Grand Finale</span><b>Day 3, 17:00</b></div>
+  </div>
+</section>
+
+<section class="s right">
+  <div class="panel">
+    <h2 style="font-size:28px;margin-bottom:10px">Seat book karo</h2>
+    <input id="nm" placeholder="Aapka naam" aria-label="Name">
+    <input id="em" placeholder="Email" type="email" aria-label="Email">
+    <button id="reg">Register karo</button>
+    <p id="msg" style="margin:10px 0 0"></p>
+  </div>
+</section>
+
+<div id="modal"><div class="panel"><h2 id="mt" style="font-size:26px"></h2><p id="md"></p><button id="mc">Band karo</button></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+var cv=document.getElementById('c');
+var R=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+R.setPixelRatio(Math.min(devicePixelRatio,2));
+var S=new THREE.Scene();S.background=new THREE.Color(0x07041a);S.fog=new THREE.FogExp2(0x07041a,0.022);
+var C=new THREE.PerspectiveCamera(60,1,.1,200);
+function resize(){R.setSize(innerWidth,innerHeight,false);C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();}
+addEventListener('resize',resize);resize();
+
+var CY=0x3df2ff,MG=0xff3d9a;
+// Core: cyborg knot + glowing eye
+var core=new THREE.Group();
+var knot=new THREE.Mesh(new THREE.TorusKnotGeometry(1.5,.38,160,18),new THREE.MeshBasicMaterial({color:CY,wireframe:true}));
+var eye=new THREE.Mesh(new THREE.IcosahedronGeometry(.7,1),new THREE.MeshBasicMaterial({color:MG,wireframe:true}));
+core.add(knot,eye);S.add(core);
+
+// Particles
+var N=1800,pos=new Float32Array(N*3);
+for(var i=0;i<N;i++){pos[i*3]=(Math.random()-.5)*40;pos[i*3+1]=(Math.random()-.5)*26;pos[i*3+2]=20-Math.random()*90;}
+var pg=new THREE.BufferGeometry();pg.setAttribute('position',new THREE.BufferAttribute(pos,3));
+var pts=new THREE.Points(pg,new THREE.PointsMaterial({color:0x9aa4ff,size:.07,transparent:true,opacity:.8}));S.add(pts);
+
+// Event objects (clickable)
+var EV=[
+ {t:'Hackathon',d:'24 ghante, ek problem, apni team. Build karo, demo do, jeeto prize.',g:new THREE.OctahedronGeometry(1.1),x:-3.4,c:CY},
+ {t:'Robo Wars',d:'Apne bot ko arena me utaaro. Last bot standing jeetega.',g:new THREE.BoxGeometry(1.4,1.4,1.4),x:0,c:MG},
+ {t:'Design Sprint',d:'3 ghante me ek landing page idea se prototype tak.',g:new THREE.TorusGeometry(.8,.3,16,40),x:3.4,c:0xb08cff}
+];
+var evM=EV.map(function(e){
+  var m=new THREE.Mesh(e.g,new THREE.MeshBasicMaterial({color:e.c,wireframe:true}));
+  m.position.set(e.x,-.6,-17);m.userData=e;S.add(m);return m;});
+
+// Schedule rings
+var rings=new THREE.Group();
+for(var k=0;k<6;k++){var r=new THREE.Mesh(new THREE.TorusGeometry(2+k*.7,.03,8,90),new THREE.MeshBasicMaterial({color:k%2?MG:CY}));r.position.z=-k*1.4;rings.add(r);}
+rings.position.set(3.2,0,-38);S.add(rings);
+
+// Register globe
+var globe=new THREE.Mesh(new THREE.SphereGeometry(3,28,20),new THREE.MeshBasicMaterial({color:CY,wireframe:true,transparent:true,opacity:.55}));
+globe.position.set(-3.5,0,-57);S.add(globe);
+
+// Scroll + mouse state
+var p=0,sp=0,mx=0,my=0,smx=0,smy=0;
+var labels=['Start','Events','Schedule','Register'],sec=document.getElementById('sec'),bar=document.getElementById('bar');
+function onScroll(){var m=document.documentElement.scrollHeight-innerHeight;p=m>0?scrollY/m:0;bar.style.width=(p*100)+'%';sec.textContent=labels[Math.round(p*3)];}
+addEventListener('scroll',onScroll);onScroll();
+addEventListener('pointermove',function(e){mx=e.clientX/innerWidth*2-1;my=-(e.clientY/innerHeight*2-1);hov(e);});
+
+// Hover + click
+var ray=new THREE.Raycaster(),hot=null;
+function pick(e){ray.setFromCamera(new THREE.Vector2(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight*2-1)),C);var h=ray.intersectObjects(evM);return h.length?h[0].object:null;}
+function hov(e){if(p<.2||p>.5){hot=null;return;}hot=pick(e);cv.style.cursor=hot?'pointer':'';}
+var modal=document.getElementById('modal');
+addEventListener('click',function(e){
+  if(modal.classList.contains('on')||e.target.closest('.panel,button,input'))return;
+  var o=(p>.2&&p<.5)?pick(e):null;
+  if(o){document.getElementById('mt').textContent=o.userData.t;document.getElementById('md').textContent=o.userData.d;modal.classList.add('on');document.getElementById('mc').focus();}
+});
+document.getElementById('mc').onclick=function(){modal.classList.remove('on');};
+modal.addEventListener('click',function(e){if(e.target===modal)modal.classList.remove('on');});
+addEventListener('keydown',function(e){if(e.key==='Escape')modal.classList.remove('on');});
+document.getElementById('reg').onclick=function(){
+  var n=document.getElementById('nm').value.trim(),m=document.getElementById('em').value.trim(),o=document.getElementById('msg');
+  o.textContent=(n&&m)?('Seat pakki, '+n+'! Confirmation '+m+' par aayega.'):'Naam aur email dono bharo.';
+};
+
+var clock=new THREE.Clock();
+function bell(x,c,w){var d=(x-c)/w;return Math.exp(-d*d);}
+function loop(){
+  var t=clock.getElapsedTime();
+  sp+=(p-sp)*.06;smx+=(mx-smx)*.06;smy+=(my-smy)*.06;
+  // camera flies down the tunnel
+  C.position.set(smx*.8,smy*.5,8-sp*60);
+  C.lookAt(smx*.8,smy*.5-.1,C.position.z-10);
+  // core follows camera, spins with scroll, rises out of the way at events
+  core.position.set(0,2.4*bell(sp,.333,.1)-1.6*bell(sp,.667,.1),C.position.z-7);
+  core.position.x=2.8*bell(sp,.667,.12)*-1+(-3.6)*bell(sp,1,.12);
+  var sc=1-.45*bell(sp,.333,.1)-.2*bell(sp,.667,.1)-.5*bell(sp,1,.12);core.scale.setScalar(sc);
+  core.rotation.y=sp*Math.PI*8+t*.3+smx*.6;core.rotation.x=t*.2+smy*.6;
+  eye.rotation.y=-t*.8;eye.scale.setScalar(1+Math.sin(t*3)*.08);
+  knot.material.color.setHex(sp<.5?CY:0xb08cff);
+  // events
+  evM.forEach(function(m,i){
+    var on=(m===hot);var s=m.scale.x+((on?1.35:1)-m.scale.x)*.12;m.scale.setScalar(s);
+    m.rotation.y+=on?.05:.01;m.rotation.x+=.006;m.position.y=-.6+Math.sin(t+i*2)*.25;
+  });
+  rings.children.forEach(function(r,i){r.rotation.z=t*(.3+i*.1)*(i%2?-1:1);r.rotation.x=Math.sin(t*.5+i)*.3;});
+  globe.rotation.y=t*.15;globe.rotation.x=t*.05;
+  pts.rotation.z=t*.01;
+  R.render(S,C);requestAnimationFrame(loop);
+}
+loop();
+})();
+</script>
+</body>
+</html>
